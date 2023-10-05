@@ -13,7 +13,7 @@
 * Build a document processing pipeline that could (potentially) scale up to ~100 million documents which meets the requirements in the description of the problem.
 
 ## Proposed Solution for Task 2
-* The process was implemented into the PySpark scriot `basf_challenge_script` that read the XML files stored into S3 bucket.
+* The process was implemented into the PySpark script `basf_challenge_script` that read the XML files stored into S3 bucket.
 
 ### Software Requirements
 * It is needed to install the jar spark-xml_2.12-0.17.0.jar in the Spark cluster to allow the XML parsing through the format `com.databricks.spark.xml`.
