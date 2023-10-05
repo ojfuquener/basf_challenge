@@ -13,16 +13,18 @@
 * Build a document processing pipeline that could (potentially) scale up to ~100 million documents which meets the requirements in the description of the problem.
 
 ## Proposed Solution for Task 2
-* The process was implemented into the PySpark scriot `basf_challenge_script` that read the XML files stored into S3 bucket.
+* The process was implemented into the PySpark script `basf_challenge_script.py` that read the XML files stored into S3 bucket.
 
 ### Software Requirements
-* It is needed to install the jar spark-xml_2.12-0.17.0.jar in the Spark cluster to allow the XML parsing through the format `com.databricks.spark.xml`.
-* Install `delta` python module to create schema and managed tables.
+* PySpark 3.1
+* Python >=3.7
+* It is needed to install the jar `spark-xml_2.12-0.17.0.jar` in the Spark cluster to allow the XML parsing through the format `com.databricks.spark.xml`.
+* Install `delta` python module to create the schema and the managed tables.
 
 ### Cluster Configuration
 * The script was executed using a AWS Glue Job, using the following configuration:
     * glue_version=3.0
-    * worker_type=G.1X
+    * worker_type=G.1X (4vCPU and 16GB RAM)
     * number_of_workers=5
 * Moreover, it was necessary to set the following parameters into the Glue's job configuration:
     * Set config variable: `--datalake-formats=delta`
