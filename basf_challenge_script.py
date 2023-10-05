@@ -6,7 +6,6 @@ nltk.download('stopwords')
 
 from awsglue.context import GlueContext
 from awsglue.job import Job
-from delta import DeltaTable
 from pyspark.context import SparkConf, SparkContext
 from pyspark.ml.feature import StopWordsRemover, Tokenizer
 from pyspark.sql import DataFrame, SparkSession
