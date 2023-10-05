@@ -19,7 +19,6 @@
 * PySpark 3.1
 * Python >=3.7
 * It is needed to install the jar `spark-xml_2.12-0.17.0.jar` in the Spark cluster to allow the XML parsing through the format `com.databricks.spark.xml`.
-* Install `delta` python module to create the schema and the managed tables.
 
 ### Cluster Configuration
 * The script was executed using a AWS Glue Job, using the following configuration:
@@ -32,3 +31,4 @@
         * `spark.sql.extensions=io.delta.sql.DeltaSparkSessionExtension`
         * `spark.sql.catalog.spark_catalog=org.apache.spark.sql.delta.catalog.DeltaCatalog`
     * All above options are required to allow the interaction with Delta module.
+    * AWS Glue has the module Delta preinstalled.
