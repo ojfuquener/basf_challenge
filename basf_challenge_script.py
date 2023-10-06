@@ -105,8 +105,13 @@ def create_delta_schema(spark_session: SparkSession, schema_name: str):
 def create_delta_table_top_words_by_patent(spark_session: SparkSession):
     create_delta_schema(spark_session, 'patents')
     spark_session.sql(f"USE patents")
-    spark_session.sql("""CREATE TABLE top_words_by_patent (`_doc-number` BIGINT, `description` STRING, `most_frequent_words` INT)
+    spark_session.sql("""CREATE TABLE top_words_by_patent (
+                        `_doc-number` BIGINT, 
+                        `description` STRING, 
+                        `most_frequent_words` INT
+                        )
                          USING parquet
+                         PARTITIONED BY (`_doc-number`) 
                          LOCATION 's3://basf-challenge-tables/patents/top_words_by_patent'""")
     
 
@@ -114,8 +119,16 @@ def create_delta_table_top_words_by_patent(spark_session: SparkSession):
 def create_delta_table_top_words_whole_patents(spark_session: SparkSession):
     create_delta_schema(spark_session, 'patents')
     spark_session.sql(f"USE patents")
-    spark_session.sql("""CREATE TABLE top_words_whole_patents (`timestamp` TIMESTAMP, `word` STRING, `num_ocurrences` INT)
+    spark_session.sql("""CREATE TABLE top_words_whole_patents (
+                         `timestamp` TIMESTAMP, 
+                         `word` STRING, 
+                         `num_ocurrences` INT,
+                         `year` STRING,
+                         `month` STRING,
+                         `day` STRING
+                         )
                          USING parquet
+                         PARTITIONED BY (`year`, `month`, `day`)
                          LOCATION 's3://basf-challenge-tables/patents/top_words_whole_patents'""")
     
     
@@ -123,9 +136,15 @@ def drop_delta_table(spark_session: SparkSession, table_name: str):
     spark_session.sql(F"DROP TABLE {table_name}")
 
 
-def persist_df_as_delta_table(df: DataFrame, table_name: str, schema_name: str):    
+def persist_df_as_delta_table(df: DataFrame, table_name: str, schema_name: str, partition_columns: list):
+    if len(partition_columns) > 1:
+        partitioned_by_columns = ','.join(partition_columns)
+    else:
+        partitioned_by_columns = partition_columns[0]
     # Save the DataFrames as Delta tables in the specified schema  
-    df.write.format("delta").mode("overwrite").saveAsTable(f"{schema_name}.{table_name}")
+    df.write.format("delta").mode("overwrite")\
+                            .partitionBy(partitioned_by_columns)\
+                            .saveAsTable(f"{schema_name}.{table_name}")
 
 
 def process_xml_data(xml_df: DataFrame):
@@ -246,15 +265,29 @@ def process_xml_data(xml_df: DataFrame):
 
     df_frequent_abstract_words = df_frequent_abstract_words.withColumnRenamed('abstract_single_word', 'word')\
                                                            .withColumn('timestamp', current_timestamp())
+                                                           
+    df_frequent_abstract_words_partitions = df_frequent_abstract_words.withColumn('year', year(col('timestamp')))\
+                                                                      .withColumn('month', month(col('timestamp')))\
+                                                                      .withColumn('day', dayofmonth(col('timestamp')))\
 
     df_frequent_description_words = df_frequent_description_words.withColumnRenamed('descrip_single_word', 'word')\
                                                                  .withColumn('timestamp', current_timestamp())
+                                                                 
+    df_frequent_description_words_partitions = df_frequent_description_words.withColumn('year', year(col('timestamp')))\
+                                                                            .withColumn('month', month(col('timestamp')))\
+                                                                            .withColumn('day', dayofmonth(col('timestamp')))\
 
     df_frequent_words_invention = df_frequent_words_invention.withColumnRenamed('invention_single_word', 'word')\
                                                              .withColumn('timestamp', current_timestamp())
+                                                             
+    df_frequent_words_invention_partitions = df_frequent_words_invention.withColumn('year', year(col('timestamp')))\
+                                                                        .withColumn('month', month(col('timestamp')))\
+                                                                        .withColumn('day', dayofmonth(col('timestamp')))\
 
-    total_most_frequent_words_df = df_frequent_abstract_words.unionAll(df_frequent_description_words).unionAll(df_frequent_words_invention)
-    total_most_frequent_words_all = total_most_frequent_words_df.select('timestamp', 'word', 'count')\
+    total_most_frequent_words_df = df_frequent_abstract_words_partitions.unionAll(df_frequent_description_words_partitions)\
+                                                                        .unionAll(df_frequent_words_invention_partitions)
+    total_most_frequent_words_all = total_most_frequent_words_df.select('timestamp', 'word', 'count',
+                                                                        'year', 'month', 'day')\
                                                                 .orderBy('count', ascending=False)\
                                                                 .filter(col("word").cast("int").isNull())\
                                                                 .limit(LIMIT_TOP_WORDS)
@@ -266,9 +299,15 @@ def process_xml_data(xml_df: DataFrame):
     total_most_frequent_words_all.show()
     
     # Save dataframes as delta tables    
-    persist_df_as_delta_table(df=top_description_words_df, table_name='top_words_by_patent', schema_name=DELTA_TABLE_SCHEMA)
+    persist_df_as_delta_table(df=top_description_words_df,
+                              table_name='top_words_by_patent', 
+                              schema_name=DELTA_TABLE_SCHEMA,
+                              partition_columns=['_doc-number'])
     
-    persist_df_as_delta_table(df=total_most_frequent_words_all, table_name='top_words_whole_patents', schema_name=DELTA_TABLE_SCHEMA)
+    persist_df_as_delta_table(df=total_most_frequent_words_all,
+                              table_name='top_words_whole_patents', 
+                              schema_name=DELTA_TABLE_SCHEMA,
+                              partition_columns=['year', 'month', 'day'])
 
     
 if __name__=='__main__':
